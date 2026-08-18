@@ -108,7 +108,7 @@ main{flex:1;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:.6vw;min-heigh
 <body>
 
 <header>
-  <div class="brand">IMPERIUM<span>B2B SALES FLOOR</span></div>
+  <div class="brand">IMPERIUM<span>B2B PIPELINE</span></div>
   <div class="stamp">PIPELINE <b id="stamp-pipe">—</b> &nbsp;·&nbsp; UPDATED <b id="stamp-time">—</b></div>
 </header>
 
@@ -128,8 +128,8 @@ main{flex:1;display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:.6vw;min-heigh
 
   <div class="col">
     <div class="card" style="flex:1">
-      <h2>Leaderboard <em>closed won</em></h2>
-      <div id="leaders"></div>
+      <h2>Where the pipeline sits <em>open accounts</em></h2>
+      <div class="src" id="mix"></div>
     </div>
     <div class="card" style="flex:1">
       <h2>Live deals <em>proposal · negotiating</em></h2>
@@ -202,7 +202,7 @@ function render(rows){
     ['Closed won',won.length,money(wonVal)+'/mo secured'],
     ['Conversion',conv+'%','lead to customer'],
     ['Late stage',late.length,'proposal or beyond'],
-    ['Follow-ups late',overdue.length,'past due date',overdue.length>0]
+    ['Needs a touch',overdue.length,'follow-up date passed',overdue.length>0]
   ];
   document.getElementById('kpis').innerHTML=kpi.map(k=>
     `<div class="kpi${k[3]?' warn':''}"><div class="lab">${k[0]}</div>
@@ -217,26 +217,25 @@ function render(rows){
       <div class="ct">${c.n}</div></div>`;}).join('');
   document.getElementById('fnl-note').textContent=rows.length+' leads';
 
-  const reps=[...new Set(rows.map(r=>r.rep).filter(Boolean))].map(rp=>{
-    const x=rows.filter(r=>r.rep===rp), w=x.filter(r=>r.status==='CLOSED WON').length;
-    return {rp,n:x.length,w,
-      act:x.filter(r=>OPEN.includes(r.status)).length,
-      cv:x.length?(w/x.length*100).toFixed(1):'0.0',
-      pv:x.filter(r=>OPEN.includes(r.status)).reduce((s,r)=>s+r.val,0),
-      od:x.filter(r=>r.next&&r.next<T&&OPEN.includes(r.status)).length};
-  }).sort((a,b)=>b.w-a.w||b.pv-a.pv);
-  const bw=Math.max(...reps.map(r=>r.w),1);
-  document.getElementById('leaders').innerHTML=reps.map((r,i)=>
-    `<div class="rep"><div class="rk">${i+1}</div>
-      <div><div class="nm">${esc(r.rp)}</div>
-        <div class="meta">${r.act} ACTIVE · ${money(r.pv)}/MO${r.od?` · <span class="late">${r.od} LATE</span>`:''}</div>
-        <div class="bar"><i style="width:${r.w/bw*100}%"></i></div></div>
-      <div class="sc"><b>${r.w}</b><i>${r.cv}% CONV</i></div></div>`).join('');
+  const stages=[['Early','NEW LEAD','CONTACTED'],['Working','QUALIFIED','MEETING SET'],
+    ['Closing','PROPOSAL SENT','NEGOTIATING']];
+  const mix=stages.map(g=>{
+    const x=rows.filter(r=>g.slice(1).includes(r.status));
+    return {g:g[0],n:x.length,v:x.reduce((s,r)=>s+r.val,0),
+      a:x.filter(r=>r.priority.startsWith('A')).length};
+  });
+  document.getElementById('mix').innerHTML=
+    '<div class="h">Stage group</div><div class="h" style="text-align:right">Accounts</div>'+
+    '<div class="h" style="text-align:right">A-priority</div><div class="h" style="text-align:right">Value</div>'+
+    mix.map(m=>`<div class="c">${m.g}</div><div class="n">${m.n}</div>
+      <div class="n">${m.a}</div><div class="n hi">${m.v?money(m.v):'—'}</div>`).join('')+
+    `<div class="c">Closed won</div><div class="n">${won.length}</div>
+     <div class="n">—</div><div class="n hi">${wonVal?money(wonVal):'—'}</div>`;
 
   const hot=late.sort((a,b)=>b.val-a.val).slice(0,9);
   document.getElementById('hot').innerHTML=hot.length?hot.map(r=>
     `<div class="row"><div><div class="co">${esc(r.company)}</div>
-      <div class="who">${esc(r.rep).toUpperCase()} · ${r.status}</div></div>
+      <div class="who">${r.status}${r.seg&&/FBO|AVIATION/i.test(r.seg)?' · AVIATION':''}</div></div>
       <div class="tag money">${r.val?money(r.val)+'/mo':'—'}</div></div>`).join('')
     :'<div class="empty">No deals past proposal stage</div>';
 
@@ -245,7 +244,7 @@ function render(rows){
   document.getElementById('followups').innerHTML=fu.length?fu.map(r=>{
     const d=days(r.next,T);
     return `<div class="row"><div><div class="co">${esc(r.company)}</div>
-      <div class="who">${esc(r.rep).toUpperCase()} · ${r.status}</div></div>
+      <div class="who">${r.status}</div></div>
       <div class="tag ${d>0?'late':''}">${d>0?d+'D LATE':d===0?'TODAY':'TOMORROW'}</div></div>`;}).join('')
     :'<div class="empty">Nothing due — pipeline is current</div>';
   document.getElementById('fu-note').textContent=overdue.length+' overdue';
